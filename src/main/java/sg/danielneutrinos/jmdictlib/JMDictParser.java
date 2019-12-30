@@ -1,5 +1,7 @@
 package sg.danielneutrinos.jmdictlib;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import sg.danielneutrinos.jmdictlib.data.*;
 
 import javax.xml.stream.XMLEventReader;
@@ -12,33 +14,41 @@ import javax.xml.stream.events.XMLEvent;
 import java.io.InputStream;
 import java.util.*;
 
+/**
+ * Main class that handles parsing.
+ */
 public class JMDictParser {
 
     private XMLEventReader xmlEventReader;
+    /**
+     * Map to hold parsed data.
+     * Map is keyed by {@link JMEntry#getEntrySequence()}
+     */
     private Map<Integer, JMEntry> dictionary;
+
+    /**
+     * Callback listener. Implement for parsing events
+     */
     private ParseEventListener parseEventListener;
 
+    /**
+     * Total number of entries in static jmdict xml
+     */
     private static final int expectedDictSize = 185764;
 
     /**
-     * Main class that handles parsing.
-     * @param parseEventListener optional listener
-     * @throws XMLStreamException Error opening stream
+     * Constructor to initialize
+     * @throws XMLStreamException thrown by parsing operation
      */
-    public JMDictParser(ParseEventListener parseEventListener) throws XMLStreamException {
-
+    public JMDictParser() throws XMLStreamException {
         System.setProperty("jdk.xml.entityExpansionLimit", "0");
-
         InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream("jmdict_e.xml");
-
         XMLInputFactory xmlInputFactory = XMLInputFactory.newInstance();
         xmlEventReader = xmlInputFactory.createXMLEventReader(inputStream);
-
-        this.parseEventListener = parseEventListener;
     }
 
     /**
-     * Get dictionary after parsing
+     * Get dictionary map after parsing
      * @return Map of entries with entry sequences as key
      */
     public Map<Integer, JMEntry> getDictionary() {
@@ -46,25 +56,32 @@ public class JMDictParser {
     }
 
     /**
-     * Get dictionary after parsing
+     * Get dictionary in JSON format after parsing
      * @return List of entries in JSON format
      */
-    public List<JMEntry> getDictionaryJSON() {
-        return new ArrayList<>(dictionary.values());
+    public String getDictionaryJSON() {
+        List<JMEntry> list = new ArrayList<>(dictionary.values());
+        Gson gson = new GsonBuilder().serializeNulls().create();
+        return gson.toJson(list);
     }
 
     /**
-     * Since source is a static file an expected number of entries
-     * can be obtained
+     * Since source is a static file an expected number of entries can be obtained
      * @return Expected number of entries
      */
     public static int getExpectedDictSize() {
         return expectedDictSize;
     }
 
+    /**
+     * Initiate the actual parsing operation. StAX limit for more than 64000 is removed, but YMMV
+     * @throws XMLStreamException can be thrown if changing setting property("jdk.xml.entityExpansionLimit") on jvm fails
+     */
     @SuppressWarnings("unchecked")
-    public void parse() throws XMLStreamException {
+    public void parse(ParseEventListener parseEventListener) throws XMLStreamException {
         if (xmlEventReader == null) throw new XMLStreamException("XMLEventReader not initialized");
+
+        this.parseEventListener = parseEventListener;
 
         dictionary = new HashMap<>();
         JMEntry entry = new JMEntry();
@@ -74,6 +91,7 @@ public class JMDictParser {
         SourceLanguage sourceLanguage = new SourceLanguage();
         Gloss gloss = new Gloss();
         int sequence = -1;
+        int index = 0;
 
         while (xmlEventReader.hasNext()) {
             XMLEvent nextEvent = xmlEventReader.nextEvent();
@@ -224,7 +242,8 @@ public class JMDictParser {
                 switch (endElement.getName().getLocalPart().toLowerCase()) {
                     case "entry":
                         dictionary.put(sequence, entry);
-                        if (parseEventListener != null) parseEventListener.entryParsed();
+                        if (parseEventListener != null) parseEventListener.entryParsed(index, entry);
+                        index++;
                         break;
                     case "k_ele":
                         entry.addKanjiElement(kanjiElement);

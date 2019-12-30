@@ -2,7 +2,6 @@ package sg.danielneutrinos.jmdictlib;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import sg.danielneutrinos.jmdictlib.data.*;
@@ -20,9 +19,10 @@ public class JMDictParserTest {
 
     @BeforeClass
     public static void oneTimeSetUp() throws Exception {
-        JMDictParser classUnderTest = new JMDictParser(new ParseEventListener() {
+        JMDictParser classUnderTest = new JMDictParser();
+        classUnderTest.parse(new ParseEventListener() {
             @Override
-            public void entryParsed() {
+            public void entryParsed(int index, JMEntry entry) {
                 entryParsedCounter++;
             }
 
@@ -31,7 +31,6 @@ public class JMDictParserTest {
                 completed = true;
             }
         });
-        classUnderTest.parse();
         dictionary = classUnderTest.getDictionary();
     }
 
