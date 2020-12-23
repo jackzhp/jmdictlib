@@ -8,7 +8,6 @@ import org.junit.Test;
 
 import sg.danielneutrinos.jmdictlib.data.*;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,6 +27,11 @@ public class JMDictParserTest {
     static Character cMax;
     static int max; //how many entries for each key? what is its max?
     static HashMap<Character, HashSet<Integer>> map = new HashMap<>(); //the size of the key set is 6057.
+    private static HashMap<Character, HashSet<Integer>> map_c_kps = new HashMap<>(); //the size of the key set is 6057, max: 64191
+    static HashMap<String, HashSet<Integer>> map_s_kps = new HashMap<>(); //size: 382423, max 47
+    static HashMap<Integer, EKPfromChar> map_id_kp = new HashMap<>(); //size: 409733
+    static int EKPfromChar_ID = 0;
+
 
     //I saw many question marks since they can not be printed!
     //but I do see many punctuation marks.
@@ -67,12 +71,13 @@ public class JMDictParserTest {
      */
     static void doMap(String s, int seqNo) {
         char[] ac = s.toCharArray();
+        HashMap<Character, HashSet<Integer>> m = map_c_kps; //map
         for (int i = 0; i < ac.length; i++) {
             Character oc = ac[i];
-            HashSet<Integer> al = map.get(oc);
+            HashSet<Integer> al = m.get(oc);
             if (al == null) {
                 al = new HashSet<>();
-                map.put(oc, al);
+                m.put(oc, al);
             }
             al.add(seqNo);
             int n = al.size();
@@ -84,36 +89,50 @@ public class JMDictParserTest {
         }
     }
 
-    static void sortByNumber() {
+    static <T extends Object> void sortByNumber(HashMap<T, HashSet<Integer>> m, String tag) {
+        System.out.println(tag);
         class MapCount {
-            Character c;
+            T c;//Character c;
             HashSet<Integer> set;
 
-            public MapCount(Character key, HashSet<Integer> value) {
+            public MapCount(T key, HashSet<Integer> value) {
                 c = key;
                 set = value;
             }
         }
-        MapCount[] amc = new MapCount[map.size()];
-        Set<Map.Entry<Character, HashSet<Integer>>> s = map.entrySet();
+        MapCount[] amc = new MapCount[m.size()];
+        Set<Map.Entry<T, HashSet<Integer>>> s = m.entrySet();
         int i = 0;
-        for (Map.Entry<Character, HashSet<Integer>> me : s) {
+        for (Map.Entry<T, HashSet<Integer>> me : s) {
             amc[i++] = new MapCount(me.getKey(), me.getValue());
         }
         Arrays.sort(amc, (a, b) -> {
             return a.set.size() - b.set.size();
         });
-        for (MapCount mc : amc) {
+        i = amc.length - 10;
+        for (; i < amc.length; i++) {
+            MapCount mc = amc[i];
             System.out.println(mc.c + ":" + mc.set.size());
         }
-        System.out.println("size:" + amc.length);
+        System.out.println(tag + " size:" + amc.length);
 //        print(amc[amc.length - 2].set);
 
     }
 
+    static void sortByNumber() {
+        sortByNumber(map_s_kps, "from string to EKPs");
+        sortByNumber(map_c_kps, "from char to EKPs");//                 = map_c_kp; //map
+
+    }
+
+
     static void outputMax() {
+
+        System.out.println("size of map_s_kps:" + map_s_kps.size()); //382423
+        System.out.println("size of map_id_kp:" + map_id_kp.size()); //409733
+        System.out.println("size of map_c_kp:" + map_c_kps.size()); //6057
         if (cMax != null) {
-            HashSet<Integer> a = map.get(cMax);
+            HashSet<Integer> a = map_c_kps.get(cMax);// map.get(cMax);
             print(a);
         } else {
             System.out.println("which one with max mapped entries, don't know");
@@ -126,18 +145,23 @@ public class JMDictParserTest {
             if (n >= nMax)
                 break;
             n++;
-            JMEntry e = dictionary.get(seqNo);
-            List<KanjiElement> al = e.getKanjiElements();
-            for (KanjiElement k : al) {
-                System.out.print(",");
-                System.out.print(k.getKanji());
+            if (false) {
+                JMEntry e = dictionary.get(seqNo);
+                List<KanjiElement> al = e.getKanjiElements();
+                for (KanjiElement k : al) {
+                    System.out.print(",");
+                    System.out.print(k.getKanji());
+                }
+                List<ReadingElement> bl = e.getReadingElements();
+                for (ReadingElement k : bl) {
+                    System.out.print(",");
+                    System.out.print(k.getKana());
+                }
+                System.out.println();
+            } else {
+                EKPfromChar kp = map_id_kp.get(seqNo);
+                System.out.println(kp.s);
             }
-            List<ReadingElement> bl = e.getReadingElements();
-            for (ReadingElement k : bl) {
-                System.out.print(",");
-                System.out.print(k.getKana());
-            }
-            System.out.println();
         }
     }
 
@@ -149,50 +173,125 @@ public class JMDictParserTest {
             @Override
             public void entryParsed(int index, JMEntry entry) {
                 entryParsedCounter++;
-                int seqNo = entry.getEntrySequence();
-                if (seqNo < 0) {
-                    System.out.println("#<0:" + seqNo);
-                } else {
-//                    System.out.println(seqNo);
-                }
-                List<KanjiElement> a = entry.getKanjiElements();
-                int size = a.size();
-                for (KanjiElement k : a) {
-                    String s = k.getKanji();
-                    doMap(s, seqNo);
-                    if (size > 1) {
-                        System.out.println(seqNo + ":" + s);
-                    }
-                }
-                List<ReadingElement> b = entry.getReadingElements();
-                size = b.size();
-                ReadingElement[] c;
-                if (size > 1) {
-                    HashSet<ReadingElement> d = new HashSet<>();
-                    for (ReadingElement e : d) {
-                        String s = e.getKana();
-                        d.add(e);
-                    }
-                    c = d.toArray(new ReadingElement[0]);
-                } else {
-                    c = b.toArray(new ReadingElement[0]);
-                }
-                for (ReadingElement k : c) {
-                    String s = k.getKana();
-                    doMap(s, seqNo);
-                    if (size > 1) {
-                        System.out.println(seqNo + "|" + s);
-                    }
-                }
+                doMap(entry);
             }
 
             @Override
             public void completed() {
                 completed = true;
+                System.out.println("all completed");
                 outputMax();
                 sortByNumber();
+                parse1();
             }
         });
+    }
+
+    private static void parse1() {
+        String s="「な」は、名前を意味する言葉として使用されることがある。";
+//        String s="Aは、名前を意味する言葉として使用されることがある。";
+        char[] ac=s.toCharArray();
+
+
+
+
+    }
+
+    private static void doMap(JMEntry entry) {
+        int seqNo = entry.getEntrySequence();
+        if (seqNo < 0) {
+            System.out.println("#<0:" + seqNo);
+        } else {
+//                    System.out.println(seqNo);
+        }
+        if (false) {
+            List<KanjiElement> a = entry.getKanjiElements();
+            int size = a.size();
+            for (KanjiElement k : a) {
+                String s = k.getKanji();
+                doMap(s, seqNo);
+                if (size > 1) {
+                    System.out.println(seqNo + ":" + s);
+                }
+            }
+            List<ReadingElement> b = entry.getReadingElements();
+            size = b.size();
+            ReadingElement[] c;
+            if (size > 1) {
+                HashSet<ReadingElement> d = new HashSet<>();
+                for (ReadingElement e : d) {
+                    String s = e.getKana();
+                    d.add(e);
+                }
+                c = d.toArray(new ReadingElement[0]);
+            } else {
+                c = b.toArray(new ReadingElement[0]);
+            }
+            for (ReadingElement k : c) {
+                String s = k.getKana();
+                doMap(s, seqNo);
+                if (size > 1) {
+                    System.out.println(seqNo + "|" + s);
+                }
+            }
+        } else {
+            HashSet<String> hss = new HashSet<>();
+            List<KanjiElement> a = entry.getKanjiElements();
+            for (KanjiElement k : a) {
+                String s = k.getKanji();
+                hss.add(removePunctuation_dot(s));
+            }
+            List<ReadingElement> b = entry.getReadingElements();
+            for (ReadingElement e : b) {
+                String s = e.getKana();
+                hss.add(removePunctuation_dot(s));
+            }
+            int size = hss.size();
+            for (String s : hss) {
+                if (size > 1) {
+//                    System.out.println(s);
+                }
+                HashSet<Integer> kps = map_s_kps.get(s);
+                if (kps == null) {
+                    kps = new HashSet<>();
+                    map_s_kps.put(s, kps);
+                } else {
+                    //this happened when the same string has different meanings.
+//                    System.out.println(s + ":" + seqNo + " already mapped from " + kps.size());
+                }
+                EKPfromChar kp = new EKPfromChar();
+                kp.s = s;
+                kp.seqNoJMdict = seqNo;
+                kps.add(kp.id);
+                map_id_kp.put(kp.id, kp);
+                doMap(s, kp.id);
+            }
+//            System.out.println();
+        }
+    }
+
+    private static String removePunctuation_dot(String s) {
+        StringBuilder sb = new StringBuilder();
+        char[] ac = s.toCharArray();
+        for (char c : ac) {
+            if (c == '.') {
+                continue;
+            }
+            sb.append(c);
+        }
+        return sb.toString();
+    }
+
+    static class EKPfromChar {
+        int id;
+        String s;
+        int iloc; //where is the char
+        int seqNoJMdict = -1;
+        int type; //not used.
+
+        EKPfromChar() {
+            id = EKPfromChar_ID++;
+        }
     }
 
     @Test
