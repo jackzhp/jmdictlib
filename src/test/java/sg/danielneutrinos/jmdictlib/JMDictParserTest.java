@@ -8,7 +8,9 @@ import org.junit.Test;
 
 import sg.danielneutrinos.jmdictlib.data.*;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -29,7 +31,7 @@ public class JMDictParserTest {
     static HashMap<Character, HashSet<Integer>> map = new HashMap<>(); //the size of the key set is 6057.
     private static HashMap<Character, HashSet<Integer>> map_c_kps = new HashMap<>(); //the size of the key set is 6057, max: 64191
     static HashMap<String, HashSet<Integer>> map_s_kps = new HashMap<>(); //size: 382423, max 47
-    static HashMap<Integer, EKPfromChar> map_id_kp = new HashMap<>(); //size: 409733
+    static HashMap<Integer, EKP> map_id_kp = new HashMap<>(); //size: 409733
     static int EKPfromChar_ID = 0;
 
 
@@ -159,7 +161,7 @@ public class JMDictParserTest {
                 }
                 System.out.println();
             } else {
-                EKPfromChar kp = map_id_kp.get(seqNo);
+                EKP kp = map_id_kp.get(seqNo);
                 System.out.println(kp.s);
             }
         }
@@ -187,12 +189,128 @@ public class JMDictParserTest {
         });
     }
 
+    static class AnalyzerSentence {
+        static char[] tos = new char[]{'な', 'を', 'が'};
+        static Comparator<EKP_a> cByID = (a, b) -> {
+            return a.kp.id - b.kp.id;
+        };
+        static Comparator<EKP_a> cByPriority = (a, b) -> {
+            return a.priority - b.priority;
+        };
+        String s;
+        char[] ac;
+        ArrayList<EKP_a[]> akps = new ArrayList<>();
+
+        ArrayList<Integer> possibleTopicLocation = new ArrayList<>();
+        ArrayList<Integer> possibleObjectLocation = new ArrayList<>();
+        ArrayList<Integer> possibleSubjectLocation = new ArrayList<>();
+
+        public AnalyzerSentence(String s) {
+            this.s = s;
+            ac = s.toCharArray();
+            for (char c : ac) {
+                HashSet<Integer> hs = getEKPfromChar(c);
+                EKP_a[] kps = new EKP_a[hs.size()];
+                int i = 0;
+                for (Integer id : hs) {
+                    EKP_a kp = new EKP_a(map_id_kp.get(id));
+                    kps[i] = kp;
+                }
+//                Arrays.sort(kps, cByID);
+                akps.add(kps);
+            }
+        }
+
+        public void pass1() {
+            for (int i = 0; i < ac.length; i++) {
+                char c = ac[i];
+                check(i, c);
+
+            }
+
+
+        }
+
+        private void check(int loc, char c) {
+            if (loc == 0)
+                return;
+//            Integer[] i0 = new Integer[0];
+            EKP_a[] akp_i = akps.get(loc); // getEKPfromChar(c).toArray(i0);
+            Arrays.sort(akp_i);
+//            char cm1 = ac[loc - 1];
+            EKP_a[] akp_im1 = akps.get(loc - 1); // getEKPfromChar(c).toArray(i0);
+            Arrays.sort(akp_im1);
+            //for any ID in kp_i, is it also in im1? if yes, its priority can be doubled.
+            int im1 = 0, i = 0;
+            boolean adjusted = false; //priorities adjusted?
+            for (; im1 < akp_im1.length && i < akp_i.length; ) { //i++,im1++
+                EKP_a kp_im1 = akp_im1[im1], kp_i = akp_i[i];
+                int id_im1 = kp_im1.kp.id, id_i = kp_i.kp.id;
+                if (id_im1 < id_i) {
+                    im1++;
+                    continue;
+                }
+                if (id_im1 == id_i) {
+                    //is it a match? maybe, maybe not. if "abcdefg" is an EKP, but "de" is not an EKP, then it is not a match.
+                    EKP kp = kp_im1.kp;
+                    char[] ac=kp.getCharArray();
+
+
+                    if (kp_im1.kp.iloc + 1 == kp_i.kp.iloc) {
+                        EKP_a kpa = trap(kp_im1, kp_i);
+                        akp_im1[im1] = akp_i[i] = kpa;
+                        //try to extend backward, and forward
+                        int imn = extendBackward(loc - 1, kpa);
+                        int ipn = extendForward(loc, kpa);
+                    }
+                    im1++;
+                    i++;
+                    continue;
+                }
+            }
+        }
+
+        private int extendBackward(int locm1, EKP_a kpa) {
+            int locm2 = locm1;
+            while (locm2 > 0) {
+                locm1 = locm2;
+                locm2 = locm1 - 1;
+                EKP_a[] akpa = akps.get(locm2); // getEKPfromChar(c).toArray(i0);
+                for (EKP_a t : akpa) {
+                    if (t.kp == kpa.kp) {
+
+                    }
+                }
+
+
+            }
+            return 0;
+        }
+
+        private EKP_a trap(EKP_a kp_im1, EKP_a kp_i) {
+            if (kp_im1.kp != kp_i.kp)
+                throw new IllegalArgumentException(kp_im1.kp.id + ":" + kp_im1.kp.s + " vs " + kp_i.kp.id + ":" + kp_i.kp.s);
+            EKP_a r = new EKP_a(kp_im1.kp);
+            if (kp_im1.priority != kp_i.priority) {
+                System.out.println("not same " + kp_im1.priority + ":" + kp_i.priority);
+            }
+            r.priority = Math.max(kp_im1.priority, kp_i.priority); //both of them should be same.
+            r.priority++;
+//            kp_im1.priority++;
+//            kp_i.priority++;
+            return r;
+        }
+    }
+
+    static HashSet<Integer> getEKPfromChar(char c) {
+        return map_c_kps.get(c);
+    }
+
     private static void parse1() {
-        String s="「な」は、名前を意味する言葉として使用されることがある。";
+        String s = "「な」は、名前を意味する言葉として使用されることがある。";
 //        String s="Aは、名前を意味する言葉として使用されることがある。";
-        char[] ac=s.toCharArray();
-
-
+        AnalyzerSentence as = new AnalyzerSentence(s);
+        as.pass1();
 
 
     }
@@ -259,7 +377,7 @@ public class JMDictParserTest {
                     //this happened when the same string has different meanings.
 //                    System.out.println(s + ":" + seqNo + " already mapped from " + kps.size());
                 }
-                EKPfromChar kp = new EKPfromChar();
+                EKP kp = new EKP();
                 kp.s = s;
                 kp.seqNoJMdict = seqNo;
                 kps.add(kp.id);
@@ -282,15 +400,28 @@ public class JMDictParserTest {
         return sb.toString();
     }
 
-    static class EKPfromChar {
+    static class EKP { //this is an EKP about the char at s.charAt(iloc)
         int id;
-        String s;
+        String s; //better to use char[]?
         int iloc; //where is the char
         int seqNoJMdict = -1;
         int type; //not used.
 
-        EKPfromChar() {
+        EKP() {
             id = EKPfromChar_ID++;
+        }
+
+        char[] getCharArray() {
+            return s.toCharArray();
+        }
+    }
+
+    static class EKP_a {
+        EKP kp;
+        int priority;
+
+        public EKP_a(EKP ekp) {
+            this.kp = kp;
         }
     }
 
