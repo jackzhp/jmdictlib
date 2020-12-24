@@ -10,8 +10,10 @@ import sg.danielneutrinos.jmdictlib.JMDictParser;
 import sg.danielneutrinos.jmdictlib.ParseEventListener;
 import sg.danielneutrinos.jmdictlib.data.*;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -21,7 +23,7 @@ import java.util.Set;
 
 //import static org.junit.Assert.*;
 
-public class JMDictParserTest {
+public class ABC {
 
     private static Map<Integer, JMEntry> dictionary;
     private final String kireiJSON = "{\"entrySequence\":1591900,\"kanjiElements\":[{\"kanji\":\"綺麗\",\"primaries\":[\"spec1\"],\"info\":[]},{\"kanji\":\"奇麗\",\"primaries\":[\"ichi1\"],\"info\":[]},{\"kanji\":\"暉麗\",\"primaries\":[],\"info\":[\"word containing out-dated kanji\"]}],\"readingElements\":[{\"kana\":\"きれい\",\"notKanjiReading\":false,\"kanjiReadings\":[],\"primaries\":[\"ichi1\",\"spec1\"],\"info\":[]},{\"kana\":\"キレイ\",\"notKanjiReading\":true,\"kanjiReadings\":[],\"primaries\":[\"spec1\"],\"info\":[]}],\"senses\":[{\"invalidSenseKanjis\":[],\"invalidSenseReadings\":[],\"xReferences\":[],\"antonyms\":[],\"partsOfSpeech\":[\"adjectival nouns or quasi-adjectives (keiyodoshi)\"],\"fields\":[],\"misc\":[\"word usually written using kana alone\"],\"sourceLanguages\":[],\"dialects\":[],\"glosses\":[{\"language\":\"eng\",\"gender\":null,\"type\":null,\"text\":\"pretty\",\"primaries\":[]},{\"language\":\"eng\",\"gender\":null,\"type\":null,\"text\":\"lovely\",\"primaries\":[]},{\"language\":\"eng\",\"gender\":null,\"type\":null,\"text\":\"beautiful\",\"primaries\":[]},{\"language\":\"eng\",\"gender\":null,\"type\":null,\"text\":\"fair\",\"primaries\":[]}],\"info\":null},{\"invalidSenseKanjis\":[],\"invalidSenseReadings\":[],\"xReferences\":[],\"antonyms\":[],\"partsOfSpeech\":[],\"fields\":[],\"misc\":[\"word usually written using kana alone\"],\"sourceLanguages\":[],\"dialects\":[],\"glosses\":[{\"language\":\"eng\",\"gender\":null,\"type\":null,\"text\":\"clean\",\"primaries\":[]},{\"language\":\"eng\",\"gender\":null,\"type\":null,\"text\":\"clear\",\"primaries\":[]},{\"language\":\"eng\",\"gender\":null,\"type\":null,\"text\":\"pure\",\"primaries\":[]},{\"language\":\"eng\",\"gender\":null,\"type\":null,\"text\":\"tidy\",\"primaries\":[]},{\"language\":\"eng\",\"gender\":null,\"type\":null,\"text\":\"neat\",\"primaries\":[]}],\"info\":null},{\"invalidSenseKanjis\":[],\"invalidSenseReadings\":[],\"xReferences\":[],\"antonyms\":[],\"partsOfSpeech\":[],\"fields\":[],\"misc\":[\"word usually written using kana alone\"],\"sourceLanguages\":[],\"dialects\":[],\"glosses\":[{\"language\":\"eng\",\"gender\":null,\"type\":null,\"text\":\"completely\",\"primaries\":[]},{\"language\":\"eng\",\"gender\":null,\"type\":null,\"text\":\"entirely\",\"primaries\":[]}],\"info\":\"as きれいに\"}]}";
@@ -34,11 +36,28 @@ public class JMDictParserTest {
     //if I always search from left to right, then this had better to sorted.
     //   and if EKPref.iloc should always be 0 or infinite(infinity is for the case the "を" in "objectを", the "が" in "subjectが")
     //  for EKPref.iloc not 0 or infinite, they should not be in the set.
-    private static HashMap<Character, HashSet<EKPref>> map_c_kps = new HashMap<>(); //the size of the key set is 6057, max: 64191
+    private static HashMap<Character, ArrayList<EKPref>> map_c_kps = new HashMap<>(); //the size of the key set is 6057,5452, max: 64191
     static HashMap<String, HashSet<Integer>> map_s_kps = new HashMap<>(); //size: 382423, max 47. feel that this not language related.
     static HashMap<Integer, EKP> map_id_kp = new HashMap<>(); //size: 409733
-    static int EKPfromChar_ID = 0;
 
+    static Comparator<EKPref> cEKPrefByLength = (a, b) -> {
+        char[] ac1 = a.kp.getCharArray(), ac2 = b.kp.getCharArray();
+        int d = ac1.length - ac2.length;
+        if (d == 0) {
+            for (int i = 0; i < ac1.length; i++) {
+                char c1 = ac1[i], c2 = ac2[i];
+                if (c1 < c2) return -1;
+                if (c1 > c2) return 1;
+            }
+            //two string are same Arrays.equals(ac1, ac2)
+            if (a.iloc < b.iloc) return -1;
+            if (a.iloc > b.iloc) return 1;
+            //this should not happen, both are same.
+            System.out.println(new String(ac1) + ":" + new String(ac2));
+            return 0;
+        }
+        return d;
+    };
 
     //I saw many question marks since they can not be printed!
     //but I do see many punctuation marks.
@@ -80,13 +99,13 @@ public class JMDictParserTest {
 //        String s = kp.s;
 //        int seqNo
         char[] ac = kp.getCharArray();// s.toCharArray();
-        HashMap<Character, HashSet<EKPref>> m = map_c_kps; //map
+        HashMap<Character, ArrayList<EKPref>> m = map_c_kps; //map
         int i = 0; //for (int i = 0; i < ac.length; i++)
         {
             Character oc = ac[i];
-            HashSet<EKPref> hs = m.get(oc);
+            ArrayList<EKPref> hs = m.get(oc);
             if (hs == null) {
-                hs = new HashSet<>();
+                hs = new ArrayList<>();
                 m.put(oc, hs);
             }
 //            EKP kp = new EKP(s);
@@ -135,7 +154,7 @@ public class JMDictParserTest {
 
     static void sortByNumber() {
         sortByNumber(map_s_kps, "from string to EKPs");
-        sortByNumber(map_c_kps, "from char to EKPs");//                 = map_c_kp; //map
+//        sortByNumber(map_c_kps, "from char to EKPs");//                 = map_c_kp; //map
 
     }
 
@@ -146,14 +165,14 @@ public class JMDictParserTest {
         System.out.println("size of map_id_kp:" + map_id_kp.size()); //409733
         System.out.println("size of map_c_kp:" + map_c_kps.size()); //6057
         if (cMax != null) {
-            HashSet<EKPref> a = map_c_kps.get(cMax);// map.get(cMax);
+            ArrayList<EKPref> a = map_c_kps.get(cMax);// map.get(cMax);
             print(a);
         } else {
             System.out.println("which one with max mapped entries, don't know");
         }
     }
 
-    static void print(HashSet<EKPref> a) {
+    static void print(ArrayList<EKPref> a) {
         int n = 0, nMax = 10;
         for (EKPref kpRef : a) {
             int seqNo = kpRef.kp.id; //kpRef.kp.seqNoJMdict
@@ -190,9 +209,9 @@ public class JMDictParserTest {
 
     public static void oneTimeSetUp() throws Exception {
         addLambda();
-        JMDictParser classUnderTest = new JMDictParser();
-        dictionary = classUnderTest.getDictionary();
-        classUnderTest.parse(new ParseEventListener() {
+        JMDictParser parser = new JMDictParser();
+        dictionary = parser.getDictionary();
+        parser.parse(new ParseEventListener() {
             @Override
             public void entryParsed(int index, JMEntry entry) {
                 entryParsedCounter++;
@@ -218,7 +237,7 @@ public class JMDictParserTest {
         kpLambda.type = 1; //for temp. to indicate this is not a ordinary character, but a replacement.
         map_id_kp.put(kpLambda.id, kpLambda);
         EKPref kpRef = new EKPref(kpLambda, 0);
-        HashSet<EKPref> hs = new HashSet<>();
+        ArrayList<EKPref> hs = new ArrayList<>();
         hs.add(kpRef);
         map_c_kps.put(cLambda, hs);
     }
@@ -244,34 +263,144 @@ public class JMDictParserTest {
 //            this.s = s;
             this.ac = ac;// s.toCharArray();
             akps = new EKP_a[ac.length][];
-
         }
 
-        void initPartitions() {
-            for (int ilocUser = 0; ilocUser < ac.length; ilocUser++) {
+        int nPartitions;
+        static Comparator<Partition> cPartitionByLength = (a, b) -> {
+            return a.seqNo - b.seqNo;
+        };
+
+        class Partition {
+            Partition left; //parent.
+            int loc; //index of ac
+            EKP_a kpa;
+            int seqNo; //=left.seqNo+1;
+
+            public Partition(Partition pLeft, int ilocUser, EKP_a kpa) {
+                this.left = pLeft;
+                this.loc = ilocUser;
+                this.kpa = kpa;
+                this.seqNo = pLeft.seqNo + 1;
+                nPartitions++;
+            }
+
+            public Partition() {
+                seqNo = loc = -1; //the head
+            }
+
+            public int locNext() {
+                if (loc == -1)
+                    return 0;
+                return loc + kpa.kp.getCharArray().length;
+            }
+
+            public void present() {
+                EKP_a[] aa = new EKP_a[seqNo];
+                Partition p = this;
+                for (int i = aa.length - 1; i >= 0; i--) {
+                    aa[i] = p.kpa;
+                    p = p.left;
+                }
+                System.out.println("length:" + seqNo);
+                for (int i = 0; i < aa.length; i++) {
+                    EKP_a kpa = aa[i];
+                    System.out.println(kpa.kp.s);
+                }
+            }
+        }
+
+        Partition head = new Partition();
+        ArrayList<Partition> tails = new ArrayList<>(); //could be sorted by its length, or by the confidence assigned to it.
+
+        ArrayList<Partition> initPartitions(Partition pLeft) {
+            ArrayList<Partition> al_kps = new ArrayList<>();
+            int ilocUser = pLeft.locNext(); //for (int ilocUser = 0; ilocUser < ac.length; ilocUser++)
+            {
+                if (ilocUser >= ac.length) {
+                    tails.add(pLeft);
+                    onTailsChanged();
+                    return al_kps;
+                }
                 char c = ac[ilocUser];
-                HashSet<EKPref> hs = getEKPfromChar(c);
+                ArrayList<EKPref> hs = getEKPfromChar(c);
                 if (hs == null) {
-                    System.out.println(c + " is not mapped, so this is an unknown");
+//                    System.out.println(c + " is not mapped, so this is an unknown");
                     EKP kp = new EKP(new char[]{c});
                     EKP_a kpa = new EKP_a(kp, ilocUser);
-                    akps[ilocUser] = new EKP_a[]{kpa};
+//                    akps[ilocUser] = new EKP_a[]{kpa};
+                    Partition p = new Partition(pLeft, ilocUser, kpa);
+                    al_kps.add(p);
                 } else {
-                    ArrayList<EKP_a> al_kps = new ArrayList<>();
 //                    EKP_a[] kps = new EKP_a[hs.size()];
 //                    int i = 0;
                     for (EKPref kpRef : hs) {
 //                        int id = kpRef.kp.id;
                         EKP_a kpa = possibleMatch(ilocUser, kpRef);
                         if (kpa != null) {
-                            al_kps.add(kpa);
+//                            al_kps.add(kpa);
+                            Partition p = new Partition(pLeft, ilocUser, kpa);
+                            al_kps.add(p);
                         }
                     }
 //                Arrays.sort(kps, cByID);
-                    akps[ilocUser] = al_kps.toArray(new EKP_a[0]); // kps; //akps.add(kps);
+//                    akps[ilocUser] = al_kps.toArray(new EKP_a[0]); // kps; //akps.add(kps);
                     //for every known, there might be a new EKP. ignore for now.
                 }
             }
+            return al_kps;
+        }
+
+        //        int minTailLength=Integer.MAX_VALUE;
+        Partition min;
+
+        private void onTailsChanged() {
+            Collections.sort(tails, cPartitionByLength);
+            if (min == null) {
+                min = tails.get(0);
+                return;
+            }
+            Partition p = tails.get(0);
+            if (p != min) {
+                min = p;
+                p.present();
+            }
+//            System.out.println("# of tails:" + tails.size() + " shortest:" + tails.get(0).seqNo);
+
+        }
+
+        ArrayList<Partition> t = new ArrayList<>();
+
+        void initPartitions() {
+            t.add(head);
+            while (true) {
+                int i = t.size();
+                if (i == 0)
+                    break;
+                Partition p = t.remove(i - 1);
+                while (true) {
+                    ArrayList<Partition> ps = initPartitions(p);
+                    i = ps.size();
+                    if (i > 0) {
+                        i--;
+                        for (; i > 0; i--)
+                            t.add(ps.get(i));
+                        p = ps.get(0); //ps = initPartitions(ps.get(0));
+                    } else break;
+                }
+//                System.out.println("total partition objects:" + nPartitions);
+            }
+            System.out.println("total partition objects:" + nPartitions);
+            System.out.println("# of tails:" + tails.size());
+            Partition[] atails = tails.toArray(new Partition[0]);
+            Arrays.sort(atails, cPartitionByLength);
+            int ilimit = atails.length - 10;
+            if (ilimit < 0)
+                ilimit = 0;
+            for (int i = atails.length - 1; i >= ilimit; i--) {
+                Partition p = atails[i];
+                p.present();
+            }
+
         }
 
         private EKP_a possibleMatch(int ilocUser, EKPref kpRef) {
@@ -435,12 +564,12 @@ public class JMDictParserTest {
         public void analyze() {
             replaceLambda();
             initPartitions();
-            pass1();
+//            pass1();
 
         }
     }
 
-    static HashSet<EKPref> getEKPfromChar(char c) {
+    static ArrayList<EKPref> getEKPfromChar(char c) {
         return map_c_kps.get(c);
     }
 
@@ -548,9 +677,10 @@ public class JMDictParserTest {
         private String s; //better to use char[]?
         int seqNoJMdict = -1;
         int type; //not used.
+        static int IDforEKP = 0;
 
         EKP() {
-            this.s = s;
+            this.id = IDforEKP++;
         }
 
         EKP(String s) {
@@ -589,6 +719,17 @@ public class JMDictParserTest {
             this.iloc = iloc;
         }
 
+        @Override
+        public boolean equals(Object o) {
+            if (o instanceof EKPref) {
+                EKPref o2 = (EKPref) o;
+                if (kp.id != o2.kp.id) {
+                    return false;
+                }
+                return iloc == o2.iloc;
+            }
+            return false;
+        }
     }
 
     static class EKP_a {
